@@ -1,0 +1,11 @@
+groups:
+- name: java-rules
+  rules:
+  - alert: JavaHighRunnableThreads
+    expr: sum(rate(jvm_threads_state{state="runnable"}[5m])) by (namespace) / sum(jvm_threads_count{namespace="java"}) by (namespace) > 0.8
+    for: 5m
+    labels:
+      severity: critical
+    annotations:
+      summary: "High runnable threads in namespace {{ $labels.namespace }}"
+      description: "Java application in namespace {{ $labels.namespace }} is using more than 80% of the available runnable threads."

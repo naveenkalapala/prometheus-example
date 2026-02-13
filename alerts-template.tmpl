@@ -1,0 +1,28 @@
+alertmanager:
+  templateFiles:
+    alerts-template.tmpl: |-
+      {{ define "slack.alert.title" }}
+      {{ if eq .Status "resolved" }} [RESOLVED]{{ else }} [FIRING]{{ end }} {{ .GroupLabels.alertname }}
+      {{ end }}
+
+      {{ define "slack.alert.text" }}
+      {{ range .Alerts }}
+
+      *Alert:*      {{ .Annotations.summary }}
+      *Description:* {{ .Annotations.description }}
+
+      *Details:*
+      • *Job:*        {{ .Labels.job }}
+      • *Severity:*   {{ .Labels.severity | toUpper }}
+      • *Namespace:*  {{ .Labels.namespace }}
+      • *Instance:*   {{ .Labels.instance }}
+      • *Started At:* {{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}
+      {{ if eq .Status "resolved" }}• *Ended At:*   {{ .EndsAt.Format "2006-01-02 15:04:05 UTC" }}{{ end }}
+      • 🔗 <{{ .GeneratorURL }}|View in Prometheus>
+
+      {{ end }}
+      {{ end }}
+
+      {{ define "slack.alert.color" }}
+      {{ if eq .Status "firing" }}danger{{ else }}good{{ end }}
+      {{ end }}

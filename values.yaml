@@ -1,52 +1,57 @@
 # values.yaml
 alertmanager:
-  enabled: true
   config:
     global:
       resolve_timeout: 5m
-      slack_api_url: 'Your slack webhook-url'
-
     inhibit_rules:
-      - equal: [namespace, alertname]
-        source_matchers: ['severity = critical']
-        target_matchers: ['severity =~ warning|info']
-      - equal: [namespace, alertname]
-        source_matchers: ['severity = warning']
-        target_matchers: ['severity = info']
-      - equal: [namespace]
-        source_matchers: ['alertname = InfoInhibitor']
-        target_matchers: ['severity = info']
-      - target_matchers: ['alertname = InfoInhibitor']
-
+      - source_matchers:
+          - 'severity = critical'
+        target_matchers:
+          - 'severity =~ warning|info'
+        equal:
+          - 'namespace'
+          - 'alertname'
+      - source_matchers:
+          - 'severity = warning'
+        target_matchers:
+          - 'severity = info'
+        equal:
+          - 'namespace'
+          - 'alertname'
+      - source_matchers:
+          - 'alertname = InfoInhibitor'
+        target_matchers:
+          - 'severity = info'
+        equal:
+          - 'namespace'
+      - target_matchers:
+          - 'alertname = InfoInhibitor'
     route:
-      group_by: ['alertname', 'job']
+      group_by: ['alertname', 'namespace', 'instance', 'job']
       group_wait: 30s
       group_interval: 5m
       repeat_interval: 5m
-      receiver: null
+      receiver: 'Slack'
       routes:
-        - match:
-            alertname: TargetDown
-          receiver: 'slack-notifications'
-
+      - receiver: 'Slack'
+      #   matchers:
+      #     - alertname = "Watchdog"      if you want to receive watchdog alerts
+      # - receiver: 'Slack'
+      #   matchers:
+      #     - alertname = "TargetDown"      if you want to receive target down alerts specific to a namespace
     receivers:
-      - name: 'slack-notifications'
-        slack_configs:
-          - channel: '#your-slack-channel'
-            send_resolved: true
-            title: '{{ if eq .Status "resolved" }}✅ [RESOLVED]{{ else }}🔥 [FIRING]{{ end }} {{ .GroupLabels.alertname }} - {{ (index .Alerts 0).Labels.severity | toUpper }}'
-            color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
-            text: |
-              {{ range .Alerts }}
-              *Alert:* {{ .Annotations.summary }}
-              *Description:* {{ .Annotations.description }}
-              * Details:*
-              *Job:* {{ .Labels.job }}
-              *Severity:* {{ .Labels.severity }}
-              *Namespace:* {{ .Labels.namespace }}
-              • *Prometheus:* <{{ .GeneratorURL }}|🔗 View in Prometheus>
-              • *Started At:* `{{ .StartsAt.Format "2006-01-02 15:04:05 UTC" }}`
-              {{ end }}
-
+    - name: 'Slack'
+      slack_configs:
+      - slack_channel: '#observability-alerts'
+        send_resolved: true
+        title: '{{ template "slack.alert.title" . }}'
+        text: '{{ template "slack.alert.text" . }}'
+        color: '{{ template "slack.alert.color" . }}'
     templates:
-      - '/etc/alertmanager/config/*.tmpl'
+    - '/etc/alertmanager/config/*.tmpl'
+    - '/etc/alertmanager/config/alerts-template.tmpl'
+
+
+additionalPrometheusRules:
+- '/etc/prometheus/rules/java-rules.yaml'
+
